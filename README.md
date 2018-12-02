@@ -1,4 +1,4 @@
-Team R
+Team 8
 
 To test all test cases:
 ./run-all.sh
