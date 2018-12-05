@@ -1,0 +1,12 @@
+C++ Code Generation Progress Check (reference SyntacticalAnalyzer to see code) 
+
+functions:
+	(Brandon):
+		implemented (not tested):
+			define()
+			param_list()
+		to implement next: 
+			stmt()
+			stmt_list()
+
+

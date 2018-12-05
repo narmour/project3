@@ -1,10 +1,14 @@
 /*******************************************************************************
-* Assignment: Project 2 - Syntactic Analyzer for Scheme to C++ Translator      *
+* Assignment: Project 3 - Code generation for Scheme to C++, an addition to    *
+* 			  CS 460 Project 1 and Project2 Lexical and Syntactical*
+* 			  Analyzers.					       * 
 * Author: Dr. Watts                                                            *
 * Date: Fall 2018                                                              *
-* File: Project2.cpp                                                           *
+* File: Project3.cpp                                                           *
 *                                                                              *
-* Description: This file contains the                                          *
+* Description: This file contains the main function that will create a         *
+* 	       syntactical analyzer which contains its own lexical analyzer     *
+* 	       and code generation function to convert Scheme to C++.          *
 *******************************************************************************/
 
 #include <cstdlib>

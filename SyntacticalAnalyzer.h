@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include "LexicalAnalyzer.h"
+#include "CodeGenerator.h"
 
 using namespace std;
 
@@ -78,6 +79,8 @@ class SyntacticalAnalyzer
     private:
 	LexicalAnalyzer * lex;
 	token_type token;
+	CodeGen * gen;
+
     ofstream p2file;
 
     /* Token mapper */
