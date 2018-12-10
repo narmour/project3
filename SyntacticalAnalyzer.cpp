@@ -355,16 +355,17 @@ int SyntacticalAnalyzer::define(){
 			writeLstExpected(LPAREN_T);
 		}
 
-		if(token==IDENT_T)
+		if(token==IDENT_T){
 			if(lex->GetLexeme() == "main"){
-				gen->WriteCode(0, "int " + lex->GetLexeme() + "(")//start of a function  
+				gen->WriteCode(0, "int " + lex->GetLexeme() + "(");//start of a function  
 
 			}
-			else{
-				gen->WriteCode(0, "Object " + lex->GetLexeme() + "(")//start of a function  
+			else{								
+				gen->WriteCode(0, "Object " + lex->GetLexeme() + "(");//start of a function  
 			}
 
 			token = lex->GetToken();
+		}
 		else 
 		{
 			errors++;
