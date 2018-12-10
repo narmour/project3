@@ -23,7 +23,7 @@ cleanProgram :
 	rm -f *.o P2.out 
 
 cleanTestFiles : 
-	rm -f *.p1 *.p2 *.p3 *.ss *.lst *.dbg *.exp
+	rm -f *.p1 *.p2 *.p3 *.lst *.dbg *.exp
 
 test-lst : 
 	./cmpttlerrs.sh 

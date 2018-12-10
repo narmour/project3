@@ -404,7 +404,7 @@ int SyntacticalAnalyzer::define(){
 	}
 
 	printP2Exiting("Define", lex->GetTokenName(token));
-	gen->WriteCode(0, "}\n");//function code generation completed. 
+	gen->WriteCode(0, "return 0;\n}\n");//function code generation completed. 
 	return errors;
 }
 
@@ -830,9 +830,11 @@ int SyntacticalAnalyzer::param_list() {
 		errors += param_list();
 	}
 
-	else if (token == RPAREN_T)
+	else if (token == RPAREN_T){
+		gen -> WriteCode(0, "){\n"); 
 		printP2FileUsing("17");	
 
+	}
 	else 
 	{
 		errors++;
