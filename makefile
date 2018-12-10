@@ -17,7 +17,7 @@ CodeGenerator.o: CodeGenerator.cpp CodeGenerator.h
 	g++ -g -c CodeGenerator.cpp
 
 clean : 
-	rm -f *.o P2.out *.gch *.x *.p1 *.p2 *.ss *.lst *.dbg *.exp
+	rm -f *.o P2.out *.gch *.x *.p1 *.p2 *.lst *.dbg *.exp
 
 cleanProgram : 
 	rm -f *.o P2.out 
