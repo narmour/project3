@@ -222,6 +222,7 @@ int SyntacticalAnalyzer::stmt(){
 	}
 
 	printP2Exiting("Stmt", lex->GetTokenName(token));
+	//gen->WriteCode(0,";\n");  
 	return errors;
 }
 
@@ -286,6 +287,7 @@ int SyntacticalAnalyzer::stmt_list()
 	}
 
 	printP2Exiting("Stmt_List", lex->GetTokenName(token));
+	//gen->WriteCode(0,";\n");  
 	return errors;
 }
 
@@ -386,6 +388,7 @@ int SyntacticalAnalyzer::define(){
 		}
 
 		errors += stmt();
+		gen->WriteCode(0,";\n");  
 		errors += stmt_list();
 
 		if (token == RPAREN_T)
@@ -404,7 +407,7 @@ int SyntacticalAnalyzer::define(){
 	}
 
 	printP2Exiting("Define", lex->GetTokenName(token));
-	gen->WriteCode(0, "return 0;\n}\n");//function code generation completed. 
+	gen->WriteCode(1, "return 0;\n}\n");//function code generation completed. 
 	return errors;
 }
 
@@ -536,42 +539,49 @@ int SyntacticalAnalyzer::action() {
 
 		case ROUND_T:
 			printP2FileUsing("41");
+			gen->WriteCode(1, lex->GetLexeme());  
 			token = lex->GetToken();
 			errors += stmt();
 			break;
 
 		case EQUALTO_T:
 			printP2FileUsing("42");
+			gen->WriteCode(1, lex->GetLexeme());  
 			token = lex->GetToken();
 			errors += stmt_list();
 			break;
 
 		case GT_T:
 			printP2FileUsing("43");
+			gen->WriteCode(1, lex->GetLexeme());  
 			token = lex->GetToken();
 			errors += stmt_list();
 			break;
 
 		case LT_T:
 			printP2FileUsing("44");
+			gen->WriteCode(1, lex->GetLexeme());  
 			token = lex->GetToken();
 			errors += stmt_list();
 			break;
 
 		case GTE_T:
 			printP2FileUsing("45");
+			gen->WriteCode(1, lex->GetLexeme());  
 			token = lex->GetToken();
 			errors += stmt_list();
 			break;
 
 		case LTE_T:
 			printP2FileUsing("46");
+			gen->WriteCode(1, lex->GetLexeme());  
 			token = lex->GetToken();
 			errors += stmt_list();
 			break;
 
 		case IDENT_T:
 			printP2FileUsing("47");
+			gen->WriteCode(1, lex->GetLexeme());  
 			token = lex->GetToken();
 			errors += stmt_list();
 			break;
@@ -579,11 +589,13 @@ int SyntacticalAnalyzer::action() {
 		case DISPLAY_T:
 			printP2FileUsing("48");
 			token = lex->GetToken();
+			gen->WriteCode(1, "cout << ");//start of a function  
 			errors += stmt();
 			break;
 
 		case NEWLINE_T:
 			printP2FileUsing("49");
+			gen->WriteCode(1, "cout << endl;\n");  
 			token = lex->GetToken();
 			break;
 
@@ -594,6 +606,7 @@ int SyntacticalAnalyzer::action() {
 	}
 
 	printP2Exiting("Action", lex->GetTokenName(token));
+	//gen->WriteCode(0, "; \n");//start of a function  
 	return errors;
 }
 
@@ -650,6 +663,7 @@ int SyntacticalAnalyzer::any_other_token() {
 
 		case NEWLINE_T:
 			printP2FileUsing("57");
+			gen->WriteCode(1, "cout << endl;\n");  
 			token = lex->GetToken();
 			break;
 
@@ -903,11 +917,13 @@ int SyntacticalAnalyzer::literal()
 	if (token == NUMLIT_T)
 	{
 		printP2FileUsing("10");
+		gen->WriteCode(0,lex->GetLexeme());  
 		token = lex->GetToken();
 	}
 
 	else if (token == STRLIT_T)
 	{
+		gen->WriteCode(0,lex->GetLexeme());//start of a function  
 		printP2FileUsing("11");
 		token = lex->GetToken();
 	}
@@ -915,6 +931,7 @@ int SyntacticalAnalyzer::literal()
 	else if (token == SQUOTE_T)
 	{
 		printP2FileUsing("12");
+		gen->WriteCode(0,lex->GetLexeme());  
 		token = lex->GetToken();
 		errors += quoted_lit();
 	}

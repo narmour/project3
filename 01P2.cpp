@@ -2,8 +2,11 @@
 // File: 01P2.cpp
 #include <iostream>
 #include "Object.h"
+#include <math.h>
 using namespace std;
 
 int main(){
-return 0;
+	cout << "Hello World";
+	cout << endl;
+	return 0;
 }

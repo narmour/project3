@@ -13,6 +13,7 @@ CodeGen::CodeGen (string filename, LexicalAnalyzer * L)
 	cpp << "// File: " << cppname << "\n";
 	cpp << "#include <iostream>\n";
 	cpp << "#include \"Object.h\"\n";
+	cpp << "#include <math.h>\n";
 	cpp << "using namespace std;\n\n";
 }
 
