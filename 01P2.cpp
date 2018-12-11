@@ -6,6 +6,8 @@ using namespace std;
 
 int main(){
 	round(Object(2.2));
+	Object(1) % Object(2);
+	Object(1)* Object(2);
 	cout << endl;
 	return 0;
 }

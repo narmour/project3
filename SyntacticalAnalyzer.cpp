@@ -274,7 +274,40 @@ int SyntacticalAnalyzer::stmt_list()
 	{
 		printP2FileUsing("5");
 		errors += stmt();
+		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
+	}
+
+	else if (token == RPAREN_T)
+		printP2FileUsing("6");
+
+	else
+	{
+		errors++;
+		writeLstUnexpected();
+	}
+
+	printP2Exiting("Stmt_List", lex->GetTokenName(token));
+	return errors;
+}
+
+int SyntacticalAnalyzer::stmt_list(string s)
+{
+	int errors = 0;
+	printP2File("Stmt_List", lex->GetTokenName(token), lex->GetLexeme());
+	validateToken(STMT_LIST_F);
+
+	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
+	{
+		printP2FileUsing("5");
+		errors += stmt();
+		if(s == "*"){
+			gen->WriteCode(0, s + " ");  
+		}
+		//gen->WriteCode(0, " \n ");  
+		errors+= stmt_list();
+		gen->WriteCode(0, ";\n");  
+		//gen->WriteCode(0, " \n ");  
 	}
 
 	else if (token == RPAREN_T)
@@ -414,6 +447,7 @@ int SyntacticalAnalyzer::define(){
 // Function "action" attempts to apply rules 24-49.
 int SyntacticalAnalyzer::action() {
 	int errors = 0;
+	string oldTok = "";
 	printP2File("Action", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(ACTION_F);
 
@@ -526,20 +560,25 @@ int SyntacticalAnalyzer::action() {
 
 		case MULT_T:
 			printP2FileUsing("39");
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case MODULO_T:
 			printP2FileUsing("40");
 			token = lex->GetToken();
+			gen->WriteCode(1, "");  
 			errors += stmt();
+			gen->WriteCode(0, " % ");  
 			errors += stmt();
+			gen->WriteCode(0, ";\n");  
 			break;
 
 		case ROUND_T:
 			printP2FileUsing("41");
-			gen->WriteCode(1, "round(Object(");  
+			gen->WriteCode(1, "round(");  
 			token = lex->GetToken();
 			errors += stmt();
 			gen->WriteCode(0, ")");
@@ -918,7 +957,7 @@ int SyntacticalAnalyzer::literal()
 	if (token == NUMLIT_T)
 	{
 		printP2FileUsing("10");
-		gen->WriteCode(0,lex->GetLexeme() + ")");  
+		gen->WriteCode(0,"Object(" + lex->GetLexeme() + ")");  
 		token = lex->GetToken();
 	}
 

@@ -91,6 +91,7 @@ class SyntacticalAnalyzer
     int more_defines();
     int define();
     int stmt_list();
+    int stmt_list(string s);
     int stmt();
     int literal();
     int quoted_lit();
