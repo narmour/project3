@@ -539,9 +539,10 @@ int SyntacticalAnalyzer::action() {
 
 		case ROUND_T:
 			printP2FileUsing("41");
-			gen->WriteCode(1, lex->GetLexeme());  
+			gen->WriteCode(1, "round(Object(");  
 			token = lex->GetToken();
 			errors += stmt();
+			gen->WriteCode(0, ")");
 			break;
 
 		case EQUALTO_T:
@@ -917,7 +918,7 @@ int SyntacticalAnalyzer::literal()
 	if (token == NUMLIT_T)
 	{
 		printP2FileUsing("10");
-		gen->WriteCode(0,lex->GetLexeme());  
+		gen->WriteCode(0,lex->GetLexeme() + ")");  
 		token = lex->GetToken();
 	}
 

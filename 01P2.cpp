@@ -2,11 +2,10 @@
 // File: 01P2.cpp
 #include <iostream>
 #include "Object.h"
-#include <math.h>
 using namespace std;
 
 int main(){
-	cout << "Hello World";
+	round(Object(2.2));
 	cout << endl;
 	return 0;
 }
