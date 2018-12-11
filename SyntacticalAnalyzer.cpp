@@ -222,7 +222,7 @@ int SyntacticalAnalyzer::stmt(){
 	}
 
 	printP2Exiting("Stmt", lex->GetTokenName(token));
-	//gen->WriteCode(0,";\n");  
+	//gen->WriteCode(0,";");  
 	return errors;
 }
 
@@ -301,13 +301,12 @@ int SyntacticalAnalyzer::stmt_list(string s)
 	{
 		printP2FileUsing("5");
 		errors += stmt();
-		if(s == "*"){
-			gen->WriteCode(0, s + " ");  
-		}
+		gen->WriteCode(0, s + " ");  
 		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
-		gen->WriteCode(0, ";\n");  
-		//gen->WriteCode(0, " \n ");  
+		if(s != ">" || s != "<" || s != ">=" || s != "<="){//there might be some other conditionals in actions to check. 
+			gen->WriteCode(0, ";\n"); 
+		}
 	}
 
 	else if (token == RPAREN_T)
@@ -455,10 +454,16 @@ int SyntacticalAnalyzer::action() {
 
 		case IF_T:
 			printP2FileUsing("24");
+			gen->WriteCode(1, "if(");  
 			token = lex->GetToken();
 			errors += stmt();
+			gen->WriteCode(0, "){\n");  
+			gen->WriteCode(1, "");
 			errors += stmt();
+			gen->WriteCode(0, ";\n");
+			gen->WriteCode(1,"}\n");  
 			errors += else_part();
+			gen->WriteCode(0, "\n");
 			break;
 
 		case COND_T:
@@ -486,20 +491,27 @@ int SyntacticalAnalyzer::action() {
 		case CONS_T:
 			printP2FileUsing("27");
 			token = lex->GetToken();
+			gen->WriteCode(1, "");  
 			errors += stmt();
+			gen->WriteCode(0, " % ");  
 			errors += stmt();
+			gen->WriteCode(0, ";\n");  
 			break;
 
 		case AND_T:
 			printP2FileUsing("28");
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case OR_T:
 			printP2FileUsing("29");
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case NOT_T:
@@ -540,8 +552,10 @@ int SyntacticalAnalyzer::action() {
 
 		case PLUS_T:
 			printP2FileUsing("36");
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case MINUS_T:
@@ -586,44 +600,50 @@ int SyntacticalAnalyzer::action() {
 
 		case EQUALTO_T:
 			printP2FileUsing("42");
-			gen->WriteCode(1, lex->GetLexeme());  
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case GT_T:
 			printP2FileUsing("43");
-			gen->WriteCode(1, lex->GetLexeme());  
+			gen->WriteCode(0, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case LT_T:
 			printP2FileUsing("44");
-			gen->WriteCode(1, lex->GetLexeme());  
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case GTE_T:
 			printP2FileUsing("45");
-			gen->WriteCode(1, lex->GetLexeme());  
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case LTE_T:
 			printP2FileUsing("46");
-			gen->WriteCode(1, lex->GetLexeme());  
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case IDENT_T:
 			printP2FileUsing("47");
-			gen->WriteCode(1, lex->GetLexeme());  
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
-			errors += stmt_list();
+			errors += stmt_list(oldTok);
 			break;
 
 		case DISPLAY_T:
@@ -904,11 +924,14 @@ int SyntacticalAnalyzer::else_part()
 	int errors = 0;
 	printP2File("Else_Part", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(ELSE_PART_F);
+	gen->WriteCode(1, "else{\n");  
 
 	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
 	{
 		printP2FileUsing("18");
+		gen->WriteCode(2, "");
 		errors += stmt();
+		gen->WriteCode(0, ";\n");
 	}
 
 	else if (token == RPAREN_T)
@@ -923,6 +946,7 @@ int SyntacticalAnalyzer::else_part()
 	}
 
 	printP2Exiting("Else_Part", lex->GetTokenName(token));
+	gen->WriteCode(1, "}");  
 	return errors;
 }
 
