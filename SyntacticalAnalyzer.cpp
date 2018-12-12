@@ -309,8 +309,9 @@ int SyntacticalAnalyzer::stmt_list(string s)
 		}
 	}
 
-	else if (token == RPAREN_T)
+	else if (token == RPAREN_T){
 		printP2FileUsing("6");
+    }
 
 	else
 	{
@@ -484,7 +485,9 @@ int SyntacticalAnalyzer::action() {
 
 		case LISTOP_T:
 			printP2FileUsing("26");
+            oldTok = lex->GetLexeme();
 			token = lex->GetToken();
+			gen->WriteCode(1, "listop(\"" + oldTok + "\",");
 			errors += stmt();
 			break;
 
@@ -560,16 +563,24 @@ int SyntacticalAnalyzer::action() {
 
 		case MINUS_T:
 			printP2FileUsing("37");
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
 			errors += stmt();
+			gen->WriteCode(0, " - ");  
 			errors += stmt_list();
+			gen->WriteCode(0, ";\n");  
 			break;
 
 		case DIV_T:
 			printP2FileUsing("38");
+			gen->WriteCode(1, "");  
+			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
 			errors += stmt();
+			gen->WriteCode(0, " / ");  
 			errors += stmt_list();
+			gen->WriteCode(0, ";\n");  
 			break;
 
 		case MULT_T:
@@ -578,6 +589,7 @@ int SyntacticalAnalyzer::action() {
 			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
 			errors += stmt_list(oldTok);
+			//gen->WriteCode(0, ";\n");
 			break;
 
 		case MODULO_T:
@@ -680,8 +692,11 @@ int SyntacticalAnalyzer::any_other_token() {
 
 		case LPAREN_T:
 			printP2FileUsing("50");
+	        gen->WriteCode(0,"Object(\"(");  
 			token = lex->GetToken();
+	        gen->WriteCode(0,lex->GetLexeme());  
 			errors += more_tokens();
+            gen->WriteCode(0,"\"));\n");
 			if (token == RPAREN_T) {
 				token = lex->GetToken();
 			}
@@ -694,6 +709,7 @@ int SyntacticalAnalyzer::any_other_token() {
 		case IDENT_T:
 			printP2FileUsing("51");
 			token = lex->GetToken();
+	        gen->WriteCode(0,lex->GetLexeme());//start of a function  
 			break;
 
 		case NUMLIT_T:
@@ -704,6 +720,7 @@ int SyntacticalAnalyzer::any_other_token() {
 		case STRLIT_T:
 			printP2FileUsing("53");
 			token = lex->GetToken();
+	       // gen->WriteCode(0,lex->GetLexeme());//start of a function  
 			break;
 
 		case CONS_T:
@@ -995,8 +1012,8 @@ int SyntacticalAnalyzer::literal()
 	else if (token == SQUOTE_T)
 	{
 		printP2FileUsing("12");
-		gen->WriteCode(0,lex->GetLexeme());  
 		token = lex->GetToken();
+		//gen->WriteCode(0,lex->GetLexeme());  
 		errors += quoted_lit();
 	}
 
