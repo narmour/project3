@@ -543,7 +543,9 @@ int SyntacticalAnalyzer::action() {
 		case NUMBERP_T:
 			printP2FileUsing("31");
 			token = lex->GetToken();
+			gen->WriteCode(1, "numberp(");
 			errors += stmt();
+			gen->WriteCode(0, ");\n");
 			break;
 
 		case LISTP_T:
