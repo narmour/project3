@@ -545,31 +545,39 @@ int SyntacticalAnalyzer::action() {
 			token = lex->GetToken();
 			gen->WriteCode(1, "numberp(");
 			errors += stmt();
-			gen->WriteCode(0, ");\n");
+			gen->WriteCode(0, ")");
 			break;
 
 		case LISTP_T:
 			printP2FileUsing("32");
 			token = lex->GetToken();
+			gen->WriteCode(1, "listp(");
 			errors += stmt();
+			gen->WriteCode(0, ")");
 			break;
 
 		case ZEROP_T:
 			printP2FileUsing("33");
 			token = lex->GetToken();
+			gen->WriteCode(1, "zerop(");
 			errors += stmt();
+			gen->WriteCode(0, ")");
 			break;
 
 		case NULLP_T:
 			printP2FileUsing("34");
 			token = lex->GetToken();
+			gen->WriteCode(1, "nullp(");
 			errors += stmt();
+			gen->WriteCode(0, ")");
 			break;
 
 		case STRINGP_T:
 			printP2FileUsing("35");
 			token = lex->GetToken();
+			gen->WriteCode(1, "stringp(");
 			errors += stmt();
+			gen->WriteCode(0, ")");
 			break;
 
 		case PLUS_T:
