@@ -239,7 +239,7 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 		token = lex->GetToken();  
 		gen->WriteCode(1, "else ");
 		errors+=stmt();
-		gen->WriteCode(0, ";\n");
+		//gen->WriteCode(0, ";\n");
 		if(token==RPAREN_T)
 			token = lex->GetToken();
 		else 
@@ -256,7 +256,7 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 		errors+=stmt();
 		gen->WriteCode(0, ") \n");
 		errors+=stmt();
-		gen->WriteCode(0, ";\n");
+		//gen->WriteCode(0, ";\n");
 		if(token==RPAREN_T)
 			token = lex->GetToken();
 		else 
@@ -315,10 +315,10 @@ int SyntacticalAnalyzer::stmt_list(string s)
             funk = 1;
 		printP2FileUsing("5");
 		errors += stmt();
-        if(s == ">" || s == "<" || s == "<=" || s==">=")
-            gen->WriteCode(0,s);
-        if(!funk)
-		    gen->WriteCode(0, s + " ");  
+        if(s == ">" || s == "<" || s == "<=" || s==">=" || !funk)
+            gen->WriteCode(0,s + " ");
+        //if(!funk)
+		//    gen->WriteCode(0, s + " ");  
 		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
 		if(s != ">" && s != "<" && s != ">=" && s != "<="){//there might be some other conditionals in actions to check. 
