@@ -27,6 +27,7 @@ static int syntacticalRuleNumbers [][34] =
 
 SyntacticalAnalyzer::SyntacticalAnalyzer (char * filename)
 {	
+    funk = false;
 	/* Initializing mapping values
 	 * for tokens.
 	 * row[token_T] -> token_M */
@@ -198,6 +199,7 @@ int SyntacticalAnalyzer::stmt(){
 
 	if(token==IDENT_T){
 		printP2FileUsing("8");
+        gen->WriteCode(0,lex->GetLexeme());
 		token = lex->GetToken();
 	}
 	else if (token == LPAREN_T){
@@ -269,11 +271,15 @@ int SyntacticalAnalyzer::stmt_list()
 	int errors = 0;
 	printP2File("Stmt_List", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(STMT_LIST_F);
-
+    //bool funk = (token == IDENT_T) ? true:false;
 	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
 	{
+
 		printP2FileUsing("5");
 		errors += stmt();
+        if(funk && (lex->pos != lex->line.length() -1 ) )
+        gen->WriteCode(0,", ");
+        
 		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
 	}
@@ -297,11 +303,17 @@ int SyntacticalAnalyzer::stmt_list(string s)
 	printP2File("Stmt_List", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(STMT_LIST_F);
 
+    bool funk = 0;
 	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
 	{
+        if (token == IDENT_T)
+            funk = 1;
 		printP2FileUsing("5");
 		errors += stmt();
-		gen->WriteCode(0, s + " ");  
+        if(s == ">" || s == "<" || s == "<=" || s==">=")
+            gen->WriteCode(0,s);
+        if(!funk)
+		    gen->WriteCode(0, s + " ");  
 		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
 		if(s != ">" && s != "<" && s != ">=" && s != "<="){//there might be some other conditionals in actions to check. 
@@ -421,7 +433,7 @@ int SyntacticalAnalyzer::define(){
 		}
 
 		errors += stmt();
-		gen->WriteCode(0,";\n");  
+		//gen->WriteCode(0,";\n");  
 		errors += stmt_list();
 
 		if (token == RPAREN_T)
@@ -607,7 +619,7 @@ int SyntacticalAnalyzer::action() {
 			gen->WriteCode(1, "round(");  
 			token = lex->GetToken();
 			errors += stmt();
-			gen->WriteCode(0, ")");
+			gen->WriteCode(0, ");\n");
 			break;
 
 		case EQUALTO_T:
@@ -624,6 +636,7 @@ int SyntacticalAnalyzer::action() {
 			oldTok = lex->GetLexeme();
 			token = lex->GetToken();
 			errors += stmt_list(oldTok);
+			//errors += stmt_list();
 			break;
 
 		case LT_T:
@@ -654,8 +667,13 @@ int SyntacticalAnalyzer::action() {
 			printP2FileUsing("47");
 			gen->WriteCode(1, "");  
 			oldTok = lex->GetLexeme();
+            gen->WriteCode(0,lex->GetLexeme() + "(");
 			token = lex->GetToken();
-			errors += stmt_list(oldTok);
+			//errors += stmt_list(oldTok);
+            funk = 1;
+			errors += stmt_list();
+            funk = 0;
+            gen->WriteCode(0,");\n");
 			break;
 
 		case DISPLAY_T:
@@ -912,7 +930,8 @@ int SyntacticalAnalyzer::param_list() {
 		printP2FileUsing("16");
 		token = lex->GetToken(); 
 		if(token == RPAREN_T){//paramlist is done. 
-			gen -> WriteCode(0, "Object " + save_ident + "){\n"); 
+			//gen -> WriteCode(0, "Object " + save_ident + "){\n"); 
+			gen -> WriteCode(0, "Object " + save_ident); 
 			
 		}
 		else{

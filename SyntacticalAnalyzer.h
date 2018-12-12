@@ -77,6 +77,11 @@ class SyntacticalAnalyzer
 	~SyntacticalAnalyzer ();
 
     private:
+
+    // stuff
+    bool funk;
+
+
 	LexicalAnalyzer * lex;
 	token_type token;
 	CodeGen * gen;

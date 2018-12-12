@@ -4,13 +4,23 @@
 #include "Object.h"
 using namespace std;
 
-int main ()
-{
-	cout << Object(12) + Object(5);
-	cout << endl;
-	cout << Object("abc") + Object("xyz");
-	cout << endl;
-	cout << Object("abc") + Object(5);
-	cout << endl;
+Object myFUNC(Object p1, Object p2, Object p3){
+	if(p1>p2){
+		cout << ":)\n";
+	}
+	else{
+		Object(2);
+	}
+	return 0;
+}
+int main(){
+	round(Object(2.2));
+	Object(1) % Object(2);
+	Object(1)+ Object(2);
+	Object(1) - Object(2);
+	Object(1)* Object(5);
+	Object(1) / Object(2);
+	listop("cdr",Object("(abc)"));
+	myFunc(Object(5), Object(1), Object(3));
 	return 0;
 }

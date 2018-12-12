@@ -48,13 +48,13 @@ class LexicalAnalyzer
 	string GetLexeme () const;
 	void ReportError (const string & msg);
 	ofstream debug;
+	string line;
+	int pos;
     private:
 	ifstream input;
 	ofstream listing;
 	ofstream p1file;
-	string line;
 	int linenum;
-	int pos;
 	string lexeme;
 	int error_type;
 	int errors;
