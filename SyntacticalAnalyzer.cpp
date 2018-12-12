@@ -218,6 +218,9 @@ int SyntacticalAnalyzer::stmt(){
 		printP2FileUsing("7");
 		errors+=literal();
 	}
+	else if (token == AND_T) {
+		gen->WriteCode(0, "&&");
+	}
 	else {
 		errors++;
 		writeLstUnexpected();
@@ -511,11 +514,14 @@ int SyntacticalAnalyzer::action() {
 		case CONS_T:
 			printP2FileUsing("27");
 			token = lex->GetToken();
-			gen->WriteCode(1, "");  
+			//gen->WriteCode(1, "");  
+			gen->WriteCode(1, "cons(");
 			errors += stmt();
-			gen->WriteCode(0, " % ");  
+			gen->WriteCode(0, ",");
+			//gen->WriteCode(0, " % ");  
 			errors += stmt();
-			gen->WriteCode(0, ";\n");  
+			gen->WriteCode(0, ");\n");
+			//gen->WriteCode(0, ";\n");  
 			break;
 
 		case AND_T:
