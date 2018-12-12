@@ -237,7 +237,9 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 	{
 		printP2FileUsing("23");
 		token = lex->GetToken();  
+		gen->WriteCode(1, "else ");
 		errors+=stmt();
+		gen->WriteCode(0, ";\n");
 		if(token==RPAREN_T)
 			token = lex->GetToken();
 		else 
@@ -250,8 +252,11 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 	else 
 	{
 		printP2FileUsing("22");
+		gen->WriteCode(1, "if(");
 		errors+=stmt();
+		gen->WriteCode(0, ") \n");
 		errors+=stmt();
+		gen->WriteCode(0, ";\n");
 		if(token==RPAREN_T)
 			token = lex->GetToken();
 		else 
