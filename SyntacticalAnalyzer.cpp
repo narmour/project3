@@ -304,7 +304,7 @@ int SyntacticalAnalyzer::stmt_list(string s)
 		gen->WriteCode(0, s + " ");  
 		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
-		if(s != ">" || s != "<" || s != ">=" || s != "<="){//there might be some other conditionals in actions to check. 
+		if(s != ">" && s != "<" && s != ">=" && s != "<="){//there might be some other conditionals in actions to check. 
 			gen->WriteCode(0, ";\n"); 
 		}
 	}
