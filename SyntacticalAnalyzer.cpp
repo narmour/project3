@@ -315,10 +315,9 @@ int SyntacticalAnalyzer::stmt_list(string s)
             funk = 1;
 		printP2FileUsing("5");
 		errors += stmt();
-		if (s == ">" || s == "<" || s == "<=" || s == ">=" || !funk || s == "and" || s=="or" || s=="not") {
+		if (s == ">" || s == "<" || s == "<=" || s == ">=" || !funk || s == "and" || s=="or") {
 			if(s=="and") gen->WriteCode(0," && ");
 			else if (s == "or") gen->WriteCode(0, " || ");
-			else if (s == "not") gen->WriteCode(0, " != ");
 			else gen->WriteCode(0, " " + s + " ");
 		}
         //if(!funk)
