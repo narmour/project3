@@ -218,9 +218,6 @@ int SyntacticalAnalyzer::stmt(){
 		printP2FileUsing("7");
 		errors+=literal();
 	}
-	else if (token == AND_T) {
-		gen->WriteCode(0, "&&");
-	}
 	else {
 		errors++;
 		writeLstUnexpected();
@@ -318,8 +315,10 @@ int SyntacticalAnalyzer::stmt_list(string s)
             funk = 1;
 		printP2FileUsing("5");
 		errors += stmt();
-        if(s == ">" || s == "<" || s == "<=" || s==">=" || !funk)
-            gen->WriteCode(0,s + " ");
+		if (s == ">" || s == "<" || s == "<=" || s == ">=" || !funk || s == "and") {
+			if(s=="and") gen->WriteCode(0," && ");
+			else gen->WriteCode(0, s + " ");
+		}
         //if(!funk)
 		//    gen->WriteCode(0, s + " ");  
 		//gen->WriteCode(0, " \n ");  
