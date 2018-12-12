@@ -24,6 +24,7 @@ class Object
 	bool operator > (const Object & O) const;
 	bool operator >= (const Object & O) const;
 	bool operator && (const Object & O) const;
+	bool operator || (const Object & O) const;
 	Object operator + (const Object & O) const;
 	Object operator - (const Object & O) const;
 	Object operator * (const Object & O) const;
