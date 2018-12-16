@@ -27,7 +27,7 @@ static int syntacticalRuleNumbers [][34] =
 
 SyntacticalAnalyzer::SyntacticalAnalyzer (char * filename)
 {	
-    funk = false;
+	funk = false;
 	/* Initializing mapping values
 	 * for tokens.
 	 * row[token_T] -> token_M */
@@ -77,6 +77,7 @@ SyntacticalAnalyzer::SyntacticalAnalyzer (char * filename)
 	p2file.open(p2FileName);
 
 	token = lex->GetToken();
+	previousToken = token;
 	int ttlErrs = program ();
 	cout << "Total syntax errors: " << ttlErrs << endl;
 
@@ -199,12 +200,21 @@ int SyntacticalAnalyzer::stmt(){
 
 	if(token==IDENT_T){
 		printP2FileUsing("8");
-        gen->WriteCode(0,lex->GetLexeme());
+		gen->WriteCode(0,lex->GetLexeme());
 		token = lex->GetToken();
 	}
 	else if (token == LPAREN_T){
+		//in a nest
+		//need to push the lparen in
+		builder.push(lex->GetLexeme());
 		printP2FileUsing("9");
+		
 		token = lex->GetToken();
+		if(previousToken == DISPLAY_T && builder.size()>1){//to clear the leading LPAREN in stack
+			builder.pop();//pop (
+			builder.pop();//pop (
+			previousToken = EOF_T;//using EOF just to change previousToken value
+		}	
 		errors+= action();
 		if(token == RPAREN_T){
 			token = lex->GetToken();
@@ -216,6 +226,8 @@ int SyntacticalAnalyzer::stmt(){
 	}
 	else if (token == NUMLIT_T || token ==  STRLIT_T || token ==  SQUOTE_T) {
 		printP2FileUsing("7");
+		builder.push("Object(" + lex->GetLexeme() + ")");
+		//gen->WriteCode(0, "Object(" + lex->GetLexeme() + ");\n");
 		errors+=literal();
 	}
 	else {
@@ -225,6 +237,22 @@ int SyntacticalAnalyzer::stmt(){
 
 	printP2Exiting("Stmt", lex->GetTokenName(token));
 	//gen->WriteCode(0,";");  
+	//if I exit with LPAREN_T then print out final expression??
+	if(token == LPAREN_T && expression.size() > 0){
+		gen->WriteCode(0, expression.top() + ";\n");
+		expression.pop();
+	}
+
+	/*
+	//TODO: not sure
+	if(token == LPAREN_T){
+		//make sure builder is clear. 
+		while(!builder.empty()){
+			builder.pop();	
+		}
+	}
+	*/
+	
 	return errors;
 }
 
@@ -237,11 +265,13 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 	{
 		printP2FileUsing("23");
 		token = lex->GetToken();  
-		gen->WriteCode(1, "else ");
+		gen->WriteCode(1, "else{\n ");
 		errors+=stmt();
-		//gen->WriteCode(0, ";\n");
-		if(token==RPAREN_T)
+		gen->WriteCode(0, ";\n");
+		if(token==RPAREN_T){
 			token = lex->GetToken();
+			gen->WriteCode(1, "}\n");
+		}
 		else 
 		{
 			writeLstExpected(RPAREN_T);
@@ -252,13 +282,23 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 	else 
 	{
 		printP2FileUsing("22");
-		gen->WriteCode(1, "if(");
+		if(previousToken == COND_T){
+			gen->WriteCode(1, "if(");
+			//setting previousToken to EOF_T so we hit the else 
+			//in the next pass through
+			previousToken = EOF_T;
+		}
+		else{
+			gen->WriteCode(1, "else if(");
+		}
 		errors+=stmt();
-		gen->WriteCode(0, ") \n");
+		gen->WriteCode(0, "){ \n");
 		errors+=stmt();
-		//gen->WriteCode(0, ";\n");
-		if(token==RPAREN_T)
+		gen->WriteCode(0, ";\n");
+		if(token==RPAREN_T){
+			gen->WriteCode(1, "}\n");
 			token = lex->GetToken();
+		}
 		else 
 		{
 			errors++;
@@ -273,25 +313,115 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 
 int SyntacticalAnalyzer::stmt_list()
 {
+	string tempbuilder = "";
+	//string building = "";
+	vector<string> temp;
+	string saveOp;
 	int errors = 0;
+	bool expressionFirst;
 	printP2File("Stmt_List", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(STMT_LIST_F);
-    //bool funk = (token == IDENT_T) ? true:false;
+	//bool funk = (token == IDENT_T) ? true:false;
 	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
 	{
-
+		cout << "lexeme: " << lex->GetLexeme() << endl;
+		//in a nest of statements, so push the lexeme into stack
+		/*do in stmt
+		if(token == NUMLIT_T){//convert to object
+			cout << "pushing into builder: " << lex->GetLexeme() << endl;
+			builder.push("Object(" + lex->GetLexeme() + ")");
+			cout << "builder size: " << builder.size() << endl;
+		}
+		else{
+			cout << "pushing into builder: " << lex->GetLexeme() << endl;
+			builder.push(lex->GetLexeme());
+			cout << "builder size: " << builder.size() << endl;
+		}
+		*/
 		printP2FileUsing("5");
 		errors += stmt();
-        if(funk && (lex->pos != lex->line.length() -1 ) )
-        gen->WriteCode(0,", ");
-        
+		if(funk && (lex->pos != lex->line.length() -1 ) )
+			gen->WriteCode(0,", ");
+
 		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
 	}
 
-	else if (token == RPAREN_T)
-		printP2FileUsing("6");
+	else if (token == RPAREN_T){
+		//here we end a parens in a nested statement
+		//build expression 
+		previousToken = token;
+		if(builder.size() > 1){//we have work to do!
+			cout << "builder size: " << builder.size() << endl;
+			
+			while(builder.size() > 0 && builder.top() != "("){
+				temp.push_back(builder.top());
+				builder.pop();
+			}
+				cout << "printing out temp:\n";
+			for(auto i = temp.begin(); i < temp.end(); i++){
+				cout << *i << " ";
+			}
+			cout << endl;
+			if(builder.size() >0){
+				builder.pop();//pop off "("
+				if(isOperator(builder.top())){
+					expressionFirst = true;
+				}
+				else{
+					expressionFirst = false;
+				}
+			}
+			if(temp.size() == 3){//means we have a full expression, so we can format
+				//and push onto stack. 	
+				//because temp is in the format operator, operator, operand
+				tempbuilder = "(" + temp[1] + temp[2] + temp[0] + ")";  	    
+				expression.push(tempbuilder);
+				tempbuilder = "";
+			}
+			else if(temp.size() == 2){//the second operand is the expression in expression stack
+				//could be expression operator operand or other way around. 
+				if(expressionFirst){
+					tempbuilder = "(" + expression.top() + temp[1] + temp[0] + ")";
+				}
+				else{
+					tempbuilder = "(" + temp[0] + temp[1] + expression.top() + ")";
+				}
+				//cout << "temp0: " << temp[0] << endl;
+				cout << "expression size: " << expression.size() << endl;
+				expression.pop();
+				expression.push(tempbuilder);
+				tempbuilder = "";
+			}
+			else{//there is multiple operands with one operator
+				for(auto i = temp.begin(); i < temp.end(); i++){
+					//find what operator the expression has
+					if(isOperator(*i)){
+						saveOp = *i;
+					}
+				}
+				//now generate the c++ expression
+				tempbuilder = "(";
+				for(auto i = temp.begin(); i < temp.end(); i++){
+					if(!isOperator(*i)){
+						if(i == temp.begin()){
+							tempbuilder += (*i);
+						}
+						else{
+							tempbuilder += (saveOp + " " + *i);
+						}
+					}
+				}
+				tempbuilder += ")";
+				expression.push(tempbuilder);
+				tempbuilder = "";
+			}
+			cout << "TEMP SIZE = " << temp.size() << endl;
 
+		}
+
+		printP2FileUsing("6");
+	}
 	else
 	{
 		errors++;
@@ -299,6 +429,15 @@ int SyntacticalAnalyzer::stmt_list()
 	}
 
 	printP2Exiting("Stmt_List", lex->GetTokenName(token));
+
+/*	
+	if(token == RPAREN_T){
+		//make sure builder is clear. 
+		while(!builder.empty()){
+			builder.pop();	
+		}
+	}
+*/
 	return errors;
 }
 
@@ -308,11 +447,11 @@ int SyntacticalAnalyzer::stmt_list(string s)
 	printP2File("Stmt_List", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(STMT_LIST_F);
 
-    bool funk = 0;
+	bool funk = 0;
 	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
 	{
-        if (token == IDENT_T)
-            funk = 1;
+		if (token == IDENT_T)
+			funk = 1;
 		printP2FileUsing("5");
 		errors += stmt();
 		if (s == ">" || s == "<" || s == "<=" || s == ">=" || !funk || s == "and" || s=="or") {
@@ -320,7 +459,7 @@ int SyntacticalAnalyzer::stmt_list(string s)
 			else if (s == "or") gen->WriteCode(0, " || ");
 			else gen->WriteCode(0, " " + s + " ");
 		}
-        //if(!funk)
+		//if(!funk)
 		//    gen->WriteCode(0, s + " ");  
 		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
@@ -331,7 +470,7 @@ int SyntacticalAnalyzer::stmt_list(string s)
 
 	else if (token == RPAREN_T){
 		printP2FileUsing("6");
-    }
+	}
 
 	else
 	{
@@ -462,688 +601,777 @@ int SyntacticalAnalyzer::define(){
 	printP2Exiting("Define", lex->GetTokenName(token));
 	gen->WriteCode(1, "return 0;\n}\n");//function code generation completed. 
 	return errors;
-}
+	}
 
-// Function "action" attempts to apply rules 24-49.
-int SyntacticalAnalyzer::action() {
-	int errors = 0;
-	string oldTok = "";
-	printP2File("Action", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(ACTION_F);
+	// Function "action" attempts to apply rules 24-49.
+	int SyntacticalAnalyzer::action() {
+		int errors = 0;
+		string oldTok = "";
+		printP2File("Action", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(ACTION_F);
 
-	switch (token) {
+		switch (token) {
 
-		case IF_T:
-			printP2FileUsing("24");
-			gen->WriteCode(1, "if(");  
+			case IF_T:
+				printP2FileUsing("24");
+				gen->WriteCode(1, "if(");  
+				token = lex->GetToken();
+				errors += stmt();
+				gen->WriteCode(0, "){\n");  
+				gen->WriteCode(1, "");
+				errors += stmt();
+				gen->WriteCode(0, ";\n");
+				gen->WriteCode(1,"}\n");  
+				errors += else_part();
+				gen->WriteCode(0, "\n");
+				break;
+
+			case COND_T:
+				printP2FileUsing("25");
+				previousToken = token;
+				token = lex->GetToken();
+
+				if (token == LPAREN_T) 
+					token = lex->GetToken();
+
+				else 
+				{
+					errors++;
+					writeLstExpected(LPAREN_T);
+				}
+
+				errors += stmt_pair_body();
+				break;
+
+			case LISTOP_T:
+				printP2FileUsing("26");
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				gen->WriteCode(1, "listop(\"" + oldTok + "\",");
+				errors += stmt();
+				break;
+
+			case CONS_T:
+				printP2FileUsing("27");
+				token = lex->GetToken();
+				//gen->WriteCode(1, "");  
+				gen->WriteCode(1, "cons(");
+				errors += stmt();
+				gen->WriteCode(0, ",");
+				//gen->WriteCode(0, " % ");  
+				errors += stmt();
+				gen->WriteCode(0, ");\n");
+				//gen->WriteCode(0, ";\n");  
+				break;
+
+			case AND_T:
+				printP2FileUsing("28");
+				gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt_list(oldTok);
+				break;
+
+			case OR_T:
+				printP2FileUsing("29");
+				gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt_list(oldTok);
+				break;
+
+			case NOT_T:
+				printP2FileUsing("30");
+				token = lex->GetToken();
+				errors += stmt();
+				break;
+
+			case NUMBERP_T:
+				printP2FileUsing("31");
+				token = lex->GetToken();
+				gen->WriteCode(1, "numberp(");
+				errors += stmt();
+				gen->WriteCode(0, ")");
+				break;
+
+			case LISTP_T:
+				printP2FileUsing("32");
+				token = lex->GetToken();
+				gen->WriteCode(1, "listp(");
+				errors += stmt();
+				gen->WriteCode(0, ")");
+				break;
+
+			case ZEROP_T:
+				printP2FileUsing("33");
+				token = lex->GetToken();
+				gen->WriteCode(1, "zerop(");
+				errors += stmt();
+				gen->WriteCode(0, ")");
+				break;
+
+			case NULLP_T:
+				printP2FileUsing("34");
+				token = lex->GetToken();
+				gen->WriteCode(1, "nullp(");
+				errors += stmt();
+				gen->WriteCode(0, ")");
+				break;
+
+			case STRINGP_T:
+				printP2FileUsing("35");
+				token = lex->GetToken();
+				gen->WriteCode(1, "stringp(");
+				errors += stmt();
+				gen->WriteCode(0, ")");
+				break;
+
+			case PLUS_T:
+				printP2FileUsing("36");
+				//gen->WriteCode(1, "");  
+				//this line is used to push operands and operators onto
+				//a stack called builder, once we reach a RPAREN_T, we will build a 
+				//properly formatted c++ expression and push it onto the 
+				//expression stack. once builder is empty, we know the entire nested
+				//scheme statement is complete so we can then write the final c++
+				//formatted expression that was stored in the expression stack. 
+				builder.push(lex->GetLexeme());
+				//oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				//errors += stmt_list(oldTok);
+				errors += stmt_list();
+				break;
+
+			case MINUS_T:
+				printP2FileUsing("37");
+				builder.push(lex->GetLexeme());
+				//gen->WriteCode(1, "");  
+				//oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt();
+				//gen->WriteCode(0, " - ");  
+				errors += stmt_list();
+				//gen->WriteCode(0, ";\n");  
+				break;
+
+			case DIV_T:
+				printP2FileUsing("38");
+				builder.push(lex->GetLexeme());
+				//gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt();
+				//gen->WriteCode(0, " / ");  
+				errors += stmt_list();
+				//gen->WriteCode(0, ";\n");  
+				break;
+
+			case MULT_T:
+				printP2FileUsing("39");
+				builder.push(lex->GetLexeme());
+				//gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				//errors += stmt_list(oldTok);
+				errors += stmt_list();
+				//gen->WriteCode(0, ";\n");
+				break;
+
+			case MODULO_T:
+				printP2FileUsing("40");
+				builder.push(lex->GetLexeme());
+				token = lex->GetToken();
+				//gen->WriteCode(1, "");  
+				errors += stmt();
+				//gen->WriteCode(0, " % ");  
+				errors += stmt();
+				//gen->WriteCode(0, ";\n");  
+				break;
+
+			case ROUND_T:
+				printP2FileUsing("41");
+				gen->WriteCode(1, "round(");  
+				token = lex->GetToken();
+				errors += stmt();
+				gen->WriteCode(0, ");\n");
+				break;
+
+			case EQUALTO_T:
+				printP2FileUsing("42");
+				gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt_list(oldTok);
+				break;
+
+			case GT_T:
+				printP2FileUsing("43");
+				gen->WriteCode(0, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt_list(oldTok);
+				//errors += stmt_list();
+				break;
+
+			case LT_T:
+				printP2FileUsing("44");
+				gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt_list(oldTok);
+				break;
+
+			case GTE_T:
+				printP2FileUsing("45");
+				gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt_list(oldTok);
+				break;
+
+			case LTE_T:
+				printP2FileUsing("46");
+				gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				token = lex->GetToken();
+				errors += stmt_list(oldTok);
+				break;
+
+			case IDENT_T:
+				printP2FileUsing("47");
+				gen->WriteCode(1, "");  
+				oldTok = lex->GetLexeme();
+				gen->WriteCode(0,lex->GetLexeme() + "(");
+				token = lex->GetToken();
+				//errors += stmt_list(oldTok);
+				funk = 1;
+				errors += stmt_list();
+				funk = 0;
+				gen->WriteCode(0,");\n");
+				break;
+
+			case DISPLAY_T:
+				printP2FileUsing("48");
+				previousToken = token;
+				token = lex->GetToken();
+				gen->WriteCode(1, "cout << ");//start of a function  
+				errors += stmt();
+				break;
+
+			case NEWLINE_T:
+				printP2FileUsing("49");
+				gen->WriteCode(1, "cout << endl;\n");  
+				token = lex->GetToken();
+				break;
+
+			default:
+				errors++;
+				writeLstUnexpected();
+				break;
+		}
+
+		printP2Exiting("Action", lex->GetTokenName(token));
+		//gen->WriteCode(0, "; \n");//start of a function  
+		return errors;
+	}
+
+	// Function "any_other_token" attempts to apply rules 50-81.
+	int SyntacticalAnalyzer::any_other_token() {
+		int errors = 0;
+		string oldLexeme;
+		printP2File("Any_Other_Token", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(ANY_OTHER_TOKEN_F);
+		cout << "in anyother, token is " + lex->GetTokenName(token) << endl;
+		switch (token) {
+
+			case LPAREN_T:
+				previousToken = LPAREN_T;
+				printP2FileUsing("50");
+				//printing the lparen, because its in a quote
+				gen->WriteCode(0, lex->GetLexeme());
+				//gen->WriteCode(0,"Object(\"(");  
+				token = lex->GetToken();
+				errors += more_tokens();
+				//gen->WriteCode(0,")\");\n");
+				if (token == RPAREN_T) {
+					//also writing rparen here because of a quote. 
+					gen->WriteCode(0, lex->GetLexeme());
+					token = lex->GetToken();
+				}
+				else {
+					errors++;
+					writeLstExpected(RPAREN_T);
+				}
+				break;
+
+			case IDENT_T:
+				printP2FileUsing("51");
+				/*
+				   if(previousToken == SQUOTE_T){
+				   gen->WriteCode(1,"Object(" + lex->GetLexeme() + ")");//start of a function  
+				   }
+				   else{
+				   gen->WriteCode(2,lex->GetLexeme());  
+				   }
+				   */
+				oldLexeme = lex->GetLexeme();
+				token = lex->GetToken();
+
+				if(token == RPAREN_T){
+					//here following a squote so dont need any Object?
+					gen->WriteCode(0, oldLexeme);
+
+					/*
+					   if(previousToken == LPAREN_T){
+					   gen->WriteCode(0, oldLexeme);
+
+					//gen->WriteCode(1,"Object(" + oldLexeme + ")");//start of a function  
+					}
+					else{
+					gen->WriteCode(0, oldLexeme + ";\n");
+					//gen->WriteCode(0,"Object(" + oldLexeme + ");\n");//start of a function  
+					}
+					*/
+				}
+				else{
+					//gen->WriteCode(0,lex->GetLexeme() + " ");  
+					gen->WriteCode(0, oldLexeme + " ");
+				}
+				break;
+
+			case NUMLIT_T:
+				printP2FileUsing("52");
+				oldLexeme = lex->GetLexeme();
+				cout << "this should be 1: " + oldLexeme << endl;
+				token = lex->GetToken();
+				if(token == RPAREN_T){
+					gen->WriteCode(0, oldLexeme);
+				}
+				else{
+					gen->WriteCode(0, oldLexeme + " ");
+					//gen->WriteCode(0,lex->GetLexeme() + " ");  
+				}
+				break;
+
+			case STRLIT_T:
+				printP2FileUsing("53");
+				oldLexeme = lex->GetLexeme();
+				token = lex->GetToken();
+				if(token == RPAREN_T){
+					gen->WriteCode(0, oldLexeme);
+				}
+				else{
+					//gen->WriteCode(0,lex->GetLexeme() + " ");  
+					gen->WriteCode(0, oldLexeme + " ");
+				}
+				break;
+
+			case CONS_T:
+				printP2FileUsing("54");
+				token = lex->GetToken();
+				break;
+
+			case IF_T:
+				printP2FileUsing("55");
+				token = lex->GetToken();
+				break;
+
+			case DISPLAY_T:
+				printP2FileUsing("56");
+				token = lex->GetToken();
+				break;
+
+			case NEWLINE_T:
+				printP2FileUsing("57");
+				gen->WriteCode(1, "cout << endl;\n");  
+				token = lex->GetToken();
+				break;
+
+			case LISTOP_T:
+				printP2FileUsing("58");
+				token = lex->GetToken();
+				break;
+
+			case AND_T:
+				printP2FileUsing("59");
+				token = lex->GetToken();
+				break;
+
+			case OR_T:
+				printP2FileUsing("60");
+				token = lex->GetToken();
+				break;
+
+			case NOT_T:
+				printP2FileUsing("61");
+				token = lex->GetToken();
+				break;
+
+			case DEFINE_T:
+				printP2FileUsing("62");
+				token = lex->GetToken();
+				break;
+
+			case NUMBERP_T:
+				printP2FileUsing("63");
+				token = lex->GetToken();
+				break;
+
+			case LISTP_T:
+				printP2FileUsing("64");
+				token = lex->GetToken();
+				break;
+
+			case ZEROP_T:
+				printP2FileUsing("65");
+				token = lex->GetToken();
+				break;
+
+			case NULLP_T:
+				printP2FileUsing("66");
+				token = lex->GetToken();
+				break;
+
+			case STRINGP_T:
+				printP2FileUsing("67");
+				token = lex->GetToken();
+				break;
+
+			case PLUS_T:
+				printP2FileUsing("68");
+				token = lex->GetToken();
+				break;
+
+			case MINUS_T:
+				printP2FileUsing("69");
+				token = lex->GetToken();
+				break;
+
+			case DIV_T:
+				printP2FileUsing("70");
+				token = lex->GetToken();
+				break;
+
+			case MULT_T:
+				printP2FileUsing("71");
+				token = lex->GetToken();
+				break;
+
+			case MODULO_T:
+				printP2FileUsing("72");
+				token = lex->GetToken();
+				break;
+
+			case ROUND_T:
+				printP2FileUsing("73");
+				token = lex->GetToken();
+				break;
+
+			case EQUALTO_T:
+				printP2FileUsing("74");
+				token = lex->GetToken();
+				break;
+
+			case GT_T:
+				printP2FileUsing("75");
+				token = lex->GetToken();
+				break;
+
+			case LT_T:
+				printP2FileUsing("76");
+				token = lex->GetToken();
+				break;
+
+			case GTE_T:
+				printP2FileUsing("77");
+				token = lex->GetToken();
+				break;
+
+			case LTE_T:
+				printP2FileUsing("78");
+				token = lex->GetToken();
+				break;
+
+			case SQUOTE_T:
+				printP2FileUsing("79");
+				cout << "into anyother squote\n";
+				gen->WriteCode(0,lex->GetLexeme());  
+				token = lex->GetToken();
+				errors += any_other_token();
+				break;
+
+			case COND_T:
+				printP2FileUsing("80");
+				token = lex->GetToken();
+				break;
+
+			case ELSE_T:
+				printP2FileUsing("81");
+				token = lex->GetToken();
+				break;
+
+			default:
+				errors++;
+				writeLstUnexpected();
+				break;
+		}
+
+		printP2Exiting("Any_Other_Token", lex->GetTokenName(token));
+		//gen->WriteCode(0, ";\n");
+		return errors;
+	}
+
+	// Function "stmt_pair" attempts to apply rules 20-21.
+	int SyntacticalAnalyzer::stmt_pair() {
+		int errors = 0;
+		printP2File("Stmt_Pair", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(STMT_PAIR_F);
+
+		if (token == LPAREN_T) {
+			printP2FileUsing("20");
 			token = lex->GetToken();
-			errors += stmt();
-			gen->WriteCode(0, "){\n");  
-			gen->WriteCode(1, "");
+			errors += stmt_pair_body();
+		}
+
+		else if (token == RPAREN_T)
+			printP2FileUsing("21");
+
+		else
+		{
+			errors++;
+			writeLstUnexpected();
+		}
+
+
+		printP2Exiting("Stmt_Pair", lex->GetTokenName(token));
+		return errors;
+	}
+
+	// Function "param_list" attempts to apply rules 16-17.
+	int SyntacticalAnalyzer::param_list() {
+		int errors = 0;
+		printP2File("Param_List", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(PARAM_LIST_F);
+
+		if (token == IDENT_T) {
+			string save_ident = lex->GetLexeme();
+			printP2FileUsing("16");
+			token = lex->GetToken(); 
+			if(token == RPAREN_T){//paramlist is done. 
+				//gen -> WriteCode(0, "Object " + save_ident + "){\n"); 
+				gen -> WriteCode(0, "Object " + save_ident); 
+
+			}
+			else{
+				gen -> WriteCode(0, "Object " + save_ident + ", "); 
+			}
+			errors += param_list();
+		}
+
+		else if (token == RPAREN_T){
+			gen -> WriteCode(0, "){\n"); 
+			printP2FileUsing("17");	
+
+		}
+		else 
+		{
+			errors++;
+			writeLstUnexpected();
+		}
+
+		printP2Exiting("Param_List", lex->GetTokenName(token));
+		return errors;
+	}
+
+	int SyntacticalAnalyzer::else_part()
+	{
+		int errors = 0;
+		printP2File("Else_Part", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(ELSE_PART_F);
+		gen->WriteCode(1, "else{\n");  
+
+		if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
+		{
+			printP2FileUsing("18");
+			gen->WriteCode(2, "");
 			errors += stmt();
 			gen->WriteCode(0, ";\n");
-			gen->WriteCode(1,"}\n");  
-			errors += else_part();
-			gen->WriteCode(0, "\n");
-			break;
+		}
 
-		case COND_T:
-			printP2FileUsing("25");
-			token = lex->GetToken();
+		else if (token == RPAREN_T)
+		{
+			printP2FileUsing("19");
+		}
 
-			if (token == LPAREN_T) 
-				token = lex->GetToken();
-
-			else 
-			{
-				errors++;
-				writeLstExpected(LPAREN_T);
-			}
-
-			errors += stmt_pair_body();
-			break;
-
-		case LISTOP_T:
-			printP2FileUsing("26");
-            oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			gen->WriteCode(1, "listop(\"" + oldTok + "\",");
-			errors += stmt();
-			break;
-
-		case CONS_T:
-			printP2FileUsing("27");
-			token = lex->GetToken();
-			//gen->WriteCode(1, "");  
-			gen->WriteCode(1, "cons(");
-			errors += stmt();
-			gen->WriteCode(0, ",");
-			//gen->WriteCode(0, " % ");  
-			errors += stmt();
-			gen->WriteCode(0, ");\n");
-			//gen->WriteCode(0, ";\n");  
-			break;
-
-		case AND_T:
-			printP2FileUsing("28");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			break;
-
-		case OR_T:
-			printP2FileUsing("29");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			break;
-
-		case NOT_T:
-			printP2FileUsing("30");
-			token = lex->GetToken();
-			errors += stmt();
-			break;
-
-		case NUMBERP_T:
-			printP2FileUsing("31");
-			token = lex->GetToken();
-			gen->WriteCode(1, "numberp(");
-			errors += stmt();
-			gen->WriteCode(0, ")");
-			break;
-
-		case LISTP_T:
-			printP2FileUsing("32");
-			token = lex->GetToken();
-			gen->WriteCode(1, "listp(");
-			errors += stmt();
-			gen->WriteCode(0, ")");
-			break;
-
-		case ZEROP_T:
-			printP2FileUsing("33");
-			token = lex->GetToken();
-			gen->WriteCode(1, "zerop(");
-			errors += stmt();
-			gen->WriteCode(0, ")");
-			break;
-
-		case NULLP_T:
-			printP2FileUsing("34");
-			token = lex->GetToken();
-			gen->WriteCode(1, "nullp(");
-			errors += stmt();
-			gen->WriteCode(0, ")");
-			break;
-
-		case STRINGP_T:
-			printP2FileUsing("35");
-			token = lex->GetToken();
-			gen->WriteCode(1, "stringp(");
-			errors += stmt();
-			gen->WriteCode(0, ")");
-			break;
-
-		case PLUS_T:
-			printP2FileUsing("36");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			break;
-
-		case MINUS_T:
-			printP2FileUsing("37");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt();
-			gen->WriteCode(0, " - ");  
-			errors += stmt_list();
-			gen->WriteCode(0, ";\n");  
-			break;
-
-		case DIV_T:
-			printP2FileUsing("38");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt();
-			gen->WriteCode(0, " / ");  
-			errors += stmt_list();
-			gen->WriteCode(0, ";\n");  
-			break;
-
-		case MULT_T:
-			printP2FileUsing("39");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			//gen->WriteCode(0, ";\n");
-			break;
-
-		case MODULO_T:
-			printP2FileUsing("40");
-			token = lex->GetToken();
-			gen->WriteCode(1, "");  
-			errors += stmt();
-			gen->WriteCode(0, " % ");  
-			errors += stmt();
-			gen->WriteCode(0, ";\n");  
-			break;
-
-		case ROUND_T:
-			printP2FileUsing("41");
-			gen->WriteCode(1, "round(");  
-			token = lex->GetToken();
-			errors += stmt();
-			gen->WriteCode(0, ");\n");
-			break;
-
-		case EQUALTO_T:
-			printP2FileUsing("42");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			break;
-
-		case GT_T:
-			printP2FileUsing("43");
-			gen->WriteCode(0, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			//errors += stmt_list();
-			break;
-
-		case LT_T:
-			printP2FileUsing("44");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			break;
-
-		case GTE_T:
-			printP2FileUsing("45");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			break;
-
-		case LTE_T:
-			printP2FileUsing("46");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-			token = lex->GetToken();
-			errors += stmt_list(oldTok);
-			break;
-
-		case IDENT_T:
-			printP2FileUsing("47");
-			gen->WriteCode(1, "");  
-			oldTok = lex->GetLexeme();
-            gen->WriteCode(0,lex->GetLexeme() + "(");
-			token = lex->GetToken();
-			//errors += stmt_list(oldTok);
-            funk = 1;
-			errors += stmt_list();
-            funk = 0;
-            gen->WriteCode(0,");\n");
-			break;
-
-		case DISPLAY_T:
-			printP2FileUsing("48");
-			token = lex->GetToken();
-			gen->WriteCode(1, "cout << ");//start of a function  
-			errors += stmt();
-			break;
-
-		case NEWLINE_T:
-			printP2FileUsing("49");
-			gen->WriteCode(1, "cout << endl;\n");  
-			token = lex->GetToken();
-			break;
-
-		default:
+		else 
+		{
 			errors++;
 			writeLstUnexpected();
-			break;
+		}
+
+		printP2Exiting("Else_Part", lex->GetTokenName(token));
+		gen->WriteCode(1, "}");  
+		return errors;
 	}
 
-	printP2Exiting("Action", lex->GetTokenName(token));
-	//gen->WriteCode(0, "; \n");//start of a function  
-	return errors;
-}
+	int SyntacticalAnalyzer::quoted_lit()
+	{
+		int errors = 0;
+		printP2File("Quoted_Lit", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(QUOTED_LIT_F);
 
-// Function "any_other_token" attempts to apply rules 50-81.
-int SyntacticalAnalyzer::any_other_token() {
-	int errors = 0;
-	printP2File("Any_Other_Token", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(ANY_OTHER_TOKEN_F);
+		// These two tokens are the only possible errors
+		if (token == EOF_T || token == RPAREN_T) {
+			errors++;
+			writeLstUnexpected();
+		}
 
-	switch (token) {
-
-		case LPAREN_T:
-			printP2FileUsing("50");
-	        gen->WriteCode(0,"Object(\"(");  
-			token = lex->GetToken();
-	        gen->WriteCode(0,lex->GetLexeme());  
-			errors += more_tokens();
-            gen->WriteCode(0,"\"));\n");
-			if (token == RPAREN_T) {
-				token = lex->GetToken();
-			}
-			else {
-				errors++;
-				writeLstExpected(RPAREN_T);
-			}
-			break;
-
-		case IDENT_T:
-			printP2FileUsing("51");
-			token = lex->GetToken();
-	        gen->WriteCode(0,lex->GetLexeme());//start of a function  
-			break;
-
-		case NUMLIT_T:
-			printP2FileUsing("52");
-			token = lex->GetToken();
-			break;
-
-		case STRLIT_T:
-			printP2FileUsing("53");
-			token = lex->GetToken();
-	       // gen->WriteCode(0,lex->GetLexeme());//start of a function  
-			break;
-
-		case CONS_T:
-			printP2FileUsing("54");
-			token = lex->GetToken();
-			break;
-
-		case IF_T:
-			printP2FileUsing("55");
-			token = lex->GetToken();
-			break;
-
-		case DISPLAY_T:
-			printP2FileUsing("56");
-			token = lex->GetToken();
-			break;
-
-		case NEWLINE_T:
-			printP2FileUsing("57");
-			gen->WriteCode(1, "cout << endl;\n");  
-			token = lex->GetToken();
-			break;
-
-		case LISTOP_T:
-			printP2FileUsing("58");
-			token = lex->GetToken();
-			break;
-
-		case AND_T:
-			printP2FileUsing("59");
-			token = lex->GetToken();
-			break;
-
-		case OR_T:
-			printP2FileUsing("60");
-			token = lex->GetToken();
-			break;
-
-		case NOT_T:
-			printP2FileUsing("61");
-			token = lex->GetToken();
-			break;
-
-		case DEFINE_T:
-			printP2FileUsing("62");
-			token = lex->GetToken();
-			break;
-
-		case NUMBERP_T:
-			printP2FileUsing("63");
-			token = lex->GetToken();
-			break;
-
-		case LISTP_T:
-			printP2FileUsing("64");
-			token = lex->GetToken();
-			break;
-
-		case ZEROP_T:
-			printP2FileUsing("65");
-			token = lex->GetToken();
-			break;
-
-		case NULLP_T:
-			printP2FileUsing("66");
-			token = lex->GetToken();
-			break;
-
-		case STRINGP_T:
-			printP2FileUsing("67");
-			token = lex->GetToken();
-			break;
-
-		case PLUS_T:
-			printP2FileUsing("68");
-			token = lex->GetToken();
-			break;
-
-		case MINUS_T:
-			printP2FileUsing("69");
-			token = lex->GetToken();
-			break;
-
-		case DIV_T:
-			printP2FileUsing("70");
-			token = lex->GetToken();
-			break;
-
-		case MULT_T:
-			printP2FileUsing("71");
-			token = lex->GetToken();
-			break;
-
-		case MODULO_T:
-			printP2FileUsing("72");
-			token = lex->GetToken();
-			break;
-
-		case ROUND_T:
-			printP2FileUsing("73");
-			token = lex->GetToken();
-			break;
-
-		case EQUALTO_T:
-			printP2FileUsing("74");
-			token = lex->GetToken();
-			break;
-
-		case GT_T:
-			printP2FileUsing("75");
-			token = lex->GetToken();
-			break;
-
-		case LT_T:
-			printP2FileUsing("76");
-			token = lex->GetToken();
-			break;
-
-		case GTE_T:
-			printP2FileUsing("77");
-			token = lex->GetToken();
-			break;
-
-		case LTE_T:
-			printP2FileUsing("78");
-			token = lex->GetToken();
-			break;
-
-		case SQUOTE_T:
-			printP2FileUsing("79");
-			token = lex->GetToken();
+		else
+		{
+			printP2FileUsing("13");
+			cout << "going into anyother, lexeme = " +lex->GetLexeme() << endl;
+			gen->WriteCode(0, "\"");
 			errors += any_other_token();
-			break;
+		}
+		gen->WriteCode(0, "\";\n");
+		printP2Exiting("Quoted_Lit", lex->GetTokenName(token));
+		return errors;
+	}
 
-		case COND_T:
-			printP2FileUsing("80");
+	int SyntacticalAnalyzer::literal()
+	{
+		int errors = 0;
+		printP2File("Literal", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(LITERAL_F);
+
+		if (token == NUMLIT_T)
+		{
+			printP2FileUsing("10");
+			if(builder.empty()){//not a nest of statements so just generate
+				gen->WriteCode(0,"Object(" + lex->GetLexeme() + ");\n");  
+
+			}
 			token = lex->GetToken();
-			break;
+			if(lex->GetLexeme() == ")"){
+				//gen->WriteCode(0, ";\n");
+			}
+		}
 
-		case ELSE_T:
-			printP2FileUsing("81");
+		else if (token == STRLIT_T)
+		{
+			gen->WriteCode(0,lex->GetLexeme());//start of a function  
+			printP2FileUsing("11");
 			token = lex->GetToken();
-			break;
+			if(lex->GetLexeme() == ")"){
+				gen->WriteCode(0, ";\n");
+			}
+		}
 
-		default:
+		else if (token == SQUOTE_T)
+		{
+			printP2FileUsing("12");
+			previousToken = token;
+			token = lex->GetToken();
+			//cout << "lexeme in literal = " + lex->GetLexeme() << endl;
+			//gen->WriteCode(0,lex->GetLexeme());  
+			errors += quoted_lit();
+		}
+
+		else 
+		{
 			errors++;
 			writeLstUnexpected();
-			break;
-	}
-
-	printP2Exiting("Any_Other_Token", lex->GetTokenName(token));
-	return errors;
-}
-
-// Function "stmt_pair" attempts to apply rules 20-21.
-int SyntacticalAnalyzer::stmt_pair() {
-	int errors = 0;
-	printP2File("Stmt_Pair", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(STMT_PAIR_F);
-
-	if (token == LPAREN_T) {
-		printP2FileUsing("20");
-		token = lex->GetToken();
-		errors += stmt_pair_body();
-	}
-
-	else if (token == RPAREN_T)
-		printP2FileUsing("21");
-
-	else
-	{
-		errors++;
-		writeLstUnexpected();
-	}
-
-
-	printP2Exiting("Stmt_Pair", lex->GetTokenName(token));
-	return errors;
-}
-
-// Function "param_list" attempts to apply rules 16-17.
-int SyntacticalAnalyzer::param_list() {
-	int errors = 0;
-	printP2File("Param_List", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(PARAM_LIST_F);
-
-	if (token == IDENT_T) {
-		string save_ident = lex->GetLexeme();
-		printP2FileUsing("16");
-		token = lex->GetToken(); 
-		if(token == RPAREN_T){//paramlist is done. 
-			//gen -> WriteCode(0, "Object " + save_ident + "){\n"); 
-			gen -> WriteCode(0, "Object " + save_ident); 
-			
 		}
-		else{
-			gen -> WriteCode(0, "Object " + save_ident + ", "); 
+
+		printP2Exiting("Literal", lex->GetTokenName(token));
+		return errors;
+	}
+
+
+	int SyntacticalAnalyzer::more_tokens()
+	{
+		int errors = 0;
+		printP2File("More_Tokens", lex->GetTokenName(token), lex->GetLexeme());
+		validateToken(MORE_TOKENS_F);
+
+		// This is the only rule that can throw an err
+		if (token == EOF_T) 
+		{
+			errors++;
+			writeLstUnexpected();
 		}
-		errors += param_list();
+
+		else if (token == RPAREN_T)
+			printP2FileUsing("15");
+
+		/* If the token is not RPARENT_T or EOF_T 
+		 * apply rule 14 */
+		else 
+		{
+			printP2FileUsing("14");
+			errors += any_other_token();
+			errors += more_tokens();
+		}
+
+		printP2Exiting("More_Tokens", lex->GetTokenName(token));
+		return errors;
 	}
 
-	else if (token == RPAREN_T){
-		gen -> WriteCode(0, "){\n"); 
-		printP2FileUsing("17");	
-
-	}
-	else 
+	bool SyntacticalAnalyzer::isValidToken(functionRuleNumberMapping fMap)
 	{
-		errors++;
-		writeLstUnexpected();
+		/* This function takes the calling
+		 * functions enum and the current
+		 * token. Then the function retrieves
+		 * its value from the syntactical
+		 * analyzer table. If the retrieved
+		 * value is 82 or 83, the token is 
+		 * not valid and the function returns
+		 * false. For any other values the 
+		 * function returns true. */
+		tokenMapper token_M = row[token];
+
+		if (syntacticalRuleNumbers[fMap][token_M] != 82 && syntacticalRuleNumbers[fMap][token_M] != 83)
+			return true;
+
+		return false;
 	}
 
-	printP2Exiting("Param_List", lex->GetTokenName(token));
-	return errors;
-}
+	void SyntacticalAnalyzer::validateToken(functionRuleNumberMapping fMap)
+	{   
+		/* This function is to be placed at the
+		 * beginning of each transition function. 
+		 * Its job is to if the first token is invalid then
+		 * report it and advance the token unless 
+		 * that token is an EOF_T and advance all tokens that are invalid
+		 * until either a valid token is found or 
+		 * if an EOF_T is found token advancing 
+		 * will halt. */
 
-int SyntacticalAnalyzer::else_part()
-{
-	int errors = 0;
-	printP2File("Else_Part", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(ELSE_PART_F);
-	gen->WriteCode(1, "else{\n");  
+		/* If a token != EOF_T only then should
+		 * the token be advanced. 
+		 * 
+		 * Everytime this function is called this 
+		 * expression is only evaluated once and 
+		 * if an err was to occur it's to only be 
+		 * reported once. */
+		if (!isValidToken(fMap))
+		{
+			writeLstUnexpected();
 
-	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
-	{
-		printP2FileUsing("18");
-		gen->WriteCode(2, "");
-		errors += stmt();
-		gen->WriteCode(0, ";\n");
-	}
+			if (token != EOF_T)
+				token = lex->GetToken();
+		}
 
-	else if (token == RPAREN_T)
-	{
-		printP2FileUsing("19");
-	}
-
-	else 
-	{
-		errors++;
-		writeLstUnexpected();
-	}
-
-	printP2Exiting("Else_Part", lex->GetTokenName(token));
-	gen->WriteCode(1, "}");  
-	return errors;
-}
-
-int SyntacticalAnalyzer::quoted_lit()
-{
-	int errors = 0;
-	printP2File("Quoted_Lit", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(QUOTED_LIT_F);
-
-	// These two tokens are the only possible errors
-	if (token == EOF_T || token == RPAREN_T) {
-		errors++;
-		writeLstUnexpected();
-	}
-
-	else
-	{
-		printP2FileUsing("13");
-		errors += any_other_token();
-	}
-
-	printP2Exiting("Quoted_Lit", lex->GetTokenName(token));
-	return errors;
-}
-
-int SyntacticalAnalyzer::literal()
-{
-	int errors = 0;
-	printP2File("Literal", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(LITERAL_F);
-
-	if (token == NUMLIT_T)
-	{
-		printP2FileUsing("10");
-		gen->WriteCode(0,"Object(" + lex->GetLexeme() + ")");  
-		token = lex->GetToken();
-	}
-
-	else if (token == STRLIT_T)
-	{
-		gen->WriteCode(0,lex->GetLexeme());//start of a function  
-		printP2FileUsing("11");
-		token = lex->GetToken();
-	}
-
-	else if (token == SQUOTE_T)
-	{
-		printP2FileUsing("12");
-		token = lex->GetToken();
-		//gen->WriteCode(0,lex->GetLexeme());  
-		errors += quoted_lit();
-	}
-
-	else 
-	{
-		errors++;
-		writeLstUnexpected();
-	}
-
-	printP2Exiting("Literal", lex->GetTokenName(token));
-	return errors;
-}
-
-
-int SyntacticalAnalyzer::more_tokens()
-{
-	int errors = 0;
-	printP2File("More_Tokens", lex->GetTokenName(token), lex->GetLexeme());
-	validateToken(MORE_TOKENS_F);
-
-	// This is the only rule that can throw an err
-	if (token == EOF_T) 
-	{
-		errors++;
-		writeLstUnexpected();
-	}
-
-	else if (token == RPAREN_T)
-		printP2FileUsing("15");
-
-	/* If the token is not RPARENT_T or EOF_T 
-	 * apply rule 14 */
-	else 
-	{
-		printP2FileUsing("14");
-		errors += any_other_token();
-		errors += more_tokens();
-	}
-
-	printP2Exiting("More_Tokens", lex->GetTokenName(token));
-	return errors;
-}
-
-bool SyntacticalAnalyzer::isValidToken(functionRuleNumberMapping fMap)
-{
-	/* This function takes the calling
-	 * functions enum and the current
-	 * token. Then the function retrieves
-	 * its value from the syntactical
-	 * analyzer table. If the retrieved
-	 * value is 82 or 83, the token is 
-	 * not valid and the function returns
-	 * false. For any other values the 
-	 * function returns true. */
-	tokenMapper token_M = row[token];
-
-	if (syntacticalRuleNumbers[fMap][token_M] != 82 && syntacticalRuleNumbers[fMap][token_M] != 83)
-		return true;
-
-	return false;
-}
-
-void SyntacticalAnalyzer::validateToken(functionRuleNumberMapping fMap)
-{   
-	/* This function is to be placed at the
-	 * beginning of each transition function. 
-	 * Its job is to if the first token is invalid then
-	 * report it and advance the token unless 
-	 * that token is an EOF_T and advance all tokens that are invalid
-	 * until either a valid token is found or 
-	 * if an EOF_T is found token advancing 
-	 * will halt. */
-
-	/* If a token != EOF_T only then should
-	 * the token be advanced. 
-	 * 
-	 * Everytime this function is called this 
-	 * expression is only evaluated once and 
-	 * if an err was to occur it's to only be 
-	 * reported once. */
-	if (!isValidToken(fMap))
-	{
-		writeLstUnexpected();
-
-		if (token != EOF_T)
+		/* If we are entering a function and we have an EOF_T 
+		 * there is nothing to advance */
+		while (!isValidToken(fMap) && token != EOF_T)
 			token = lex->GetToken();
 	}
-
-	/* If we are entering a function and we have an EOF_T 
-	 * there is nothing to advance */
-	while (!isValidToken(fMap) && token != EOF_T)
-		token = lex->GetToken();
-}
+	bool SyntacticalAnalyzer::isOperator(string x){
+		if(x == "+" || x == "-" || x == "/" || x == "modulo" || x == "*"){
+			return true;
+		}	
+		else{
+			return false;
+		}
+  	} 

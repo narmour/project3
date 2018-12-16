@@ -5,7 +5,7 @@
 using namespace std;
 
 Object myFUNC(Object p1, Object p2, Object p3){
-	if(p1>p2){
+	if(p1 > p2){
 		cout << ":)\n";
 	}
 	else{
@@ -14,13 +14,14 @@ Object myFUNC(Object p1, Object p2, Object p3){
 	return 0;
 }
 int main(){
-	round(Object(2.2));
-	Object(1) % Object(2);
-	Object(1)+ Object(2);
-	Object(1) - Object(2);
-	Object(1)* Object(5);
-	Object(1) / Object(2);
-	listop("cdr",Object("(abc)"));
-	myFunc(Object(5), Object(1), Object(3));
+	if(Object(3) > Object(3)){ 
+		Object(greater);
+	}
+	else if(	Object(3) < Object(3)){ 
+"less";
+	}
+	else{
+ "equal";
+	}
 	return 0;
 }

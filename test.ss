@@ -9,18 +9,9 @@
 
 
 (define (main) 
-
-    (round 2.2)
-    (modulo 1 2)
-    (+ 1 2)
-    (- 1 2)
-    (* 1 5)
-    (/ 1 2)
-
-    (cdr '(a b c))
-
-
-    (myFunc 5 1 3)
+(cond ((> 3 3) 'greater)
+      ((< 3 3) "less")
+      (else "equal"))
 
 )
 
