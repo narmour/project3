@@ -202,8 +202,7 @@ int SyntacticalAnalyzer::stmt(){
 
 	if(token==IDENT_T){
 		printP2FileUsing("8");
-		//gen->WriteCode(0,lex->GetLexeme());
-		builder.push("Object(" + lex->GetLexeme() + ")");
+		gen->WriteCode(0,lex->GetLexeme());
 		token = lex->GetToken();
 	}
 
@@ -250,7 +249,7 @@ int SyntacticalAnalyzer::stmt(){
 		//clear builder for the next nest.
 		while(!builder.empty()){
 			//TODO:displaying what builder contains, delete for deployment
-			cout << builder.top() << endl;
+			//cout << builder.top() << endl;
 			builder.pop();	
 		}
 		LeftParens = RightParens = 0;
@@ -444,7 +443,6 @@ int SyntacticalAnalyzer::define(){
 	int errors = 0;
 	printP2File("Define", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(DEFINE_F);
-	string oldTok = "";
 
 	if(token == DEFINE_T){
 		printP2FileUsing("4");
@@ -460,7 +458,6 @@ int SyntacticalAnalyzer::define(){
 
 		if(token==IDENT_T){
 			if(lex->GetLexeme() == "main"){
-				oldTok = "main";
 				gen->WriteCode(0, "int " + lex->GetLexeme() + "(");//start of a function  
 
 			}
@@ -488,16 +485,10 @@ int SyntacticalAnalyzer::define(){
 			errors++;
 			writeLstExpected(RPAREN_T);
 		}
-		if(oldTok != "main"){
-			gen->WriteCode(1, "return Object(");//function code generation completed. 
-		}
 
 		errors += stmt();
 		//gen->WriteCode(0,";\n");  
 		errors += stmt_list();
-		if(oldTok != "main"){
-			gen->WriteCode(0, ");\n}\n");//function code generation completed. 
-		}
 
 		if (token == RPAREN_T)
 			token = lex->GetToken();
@@ -515,10 +506,7 @@ int SyntacticalAnalyzer::define(){
 	}
 
 	printP2Exiting("Define", lex->GetTokenName(token));
-	//TODO: might now return 0!!
-	if(oldTok == "main"){
-		gen->WriteCode(1, "return 0;\n}\n");//function code generation completed. 
-	}
+	gen->WriteCode(1, "return 0;\n}\n");//function code generation completed. 
 	return errors;
 	}
 
@@ -773,15 +761,15 @@ int SyntacticalAnalyzer::define(){
 
 			case IDENT_T:
 				printP2FileUsing("47");
-				//gen->WriteCode(1, "");  
+				gen->WriteCode(1, "");  
 				oldTok = lex->GetLexeme();
 				gen->WriteCode(0,lex->GetLexeme() + "(");
 				token = lex->GetToken();
 				//errors += stmt_list(oldTok);
-				//funk = 1;
+				funk = 1;
 				errors += stmt_list();
 				funk = 0;
-				//gen->WriteCode(0,");\n");
+				gen->WriteCode(0,");\n");
 				break;
 
 			case DISPLAY_T:

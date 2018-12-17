@@ -33,3 +33,143 @@ void CodeGen::WriteCode (int tabs, string code)
 		cpp << '\t';
 	cpp << code;
 }
+
+void CodeGen::WriteNest(int tabs, stack<string> s){
+	for (int t = 0; t < tabs; t++)
+		cpp << '\t';
+	cout << "s size = " << s.size() << endl;
+	stack<string> temp;
+	string returnVal = "";
+	string saveOp = "";
+	int i =0;
+	while(!s.empty()){
+		i++;
+		if(isOperator(s.top())){
+			saveOp = s.top();
+			if(s.top() == "modulo"){
+				string operand1 = temp.top(); 
+				temp.pop();
+				string operand2 = temp.top();
+				temp.pop();
+				string infix = "(" + operand1 + " % " + operand2 + ")";
+				temp.push(infix);
+			}
+			else if(s.top() == "round"){
+				string operand1 = temp.top(); 
+				temp.pop();
+				string infix = "(round(" + operand1 + "))";	
+				temp.push(infix);
+			}
+			else{
+				saveOp = s.top();
+				if(temp.size()>=2){
+					string operand1 = temp.top(); 
+					temp.pop();
+					string operand2 = temp.top();
+					temp.pop();
+					//creating infix expression.
+					string infix = "(" + operand1 + s.top() + operand2 + ")";
+					temp.push(infix);
+				}
+
+			}
+			s.pop();
+			/*
+			if(temp.size()>=2){
+				string operand1 = temp.top(); 
+				temp.pop();
+				string operand2 = temp.top();
+				temp.pop();
+				//creating infix expression.
+				string infix = "(" + operand1 + s.top() + operand2 + ")";
+				temp.push(infix);
+				s.pop();
+			}
+			*/
+		}
+		else{//is an operand so we will store it in our temp expression holder
+			temp.push(s.top());
+			s.pop();
+		}
+	}
+	if(temp.size() > 2){//means we have something like (* 1 2 3 4 5)
+		int i = 0;
+		while(!temp.empty()){
+			if( i == 0 ){
+				returnVal += (temp.top());
+			}
+			else{
+				returnVal += (saveOp + temp.top());
+			}
+			temp.pop();
+			i++;
+		}
+		cpp << returnVal + ";\n";
+	}
+	else if(i == 1){
+		cpp << temp.top() + ";\n";	
+	       
+	}
+	else if(i == 3){
+		cpp << temp.top();	
+
+	}
+	else{
+		cpp << temp.top() + ";\n";	
+	
+	}
+}
+
+bool CodeGen::isOperator(string x){
+	if(x == "+" || x == "-" || x == "/" || x == "round" ||x == "modulo" || x == "*"){
+		return true;
+	}	
+	else{
+		return false;
+	}
+} 
+	/*
+	if(temp.size() > 2){//means we have something like (* 1 2 3 4 5)
+		int i = 0;
+		while(!temp.empty()){
+			if( i == 0 ){
+				returnVal += (temp.top());
+			}
+			else{
+				returnVal += (saveOp + temp.top());
+			}
+			temp.pop();
+			i++;
+		}
+		cpp << returnVal + ";\n";
+	}
+	*/
+			/*
+			if(s.top() == "modulo"){
+				string operand1 = temp.top(); 
+				temp.pop();
+				string operand2 = temp.top();
+				temp.pop();
+				string infix = "(" + operand1 + " % " + operand2 + ")";
+				temp.push(infix);
+			}
+			else if(s.top() == "round"){
+				string operand1 = temp.top(); 
+				temp.pop();
+				string infix = "(round(" + operand1 + "))";	
+				temp.push(infix);
+			}
+			else{
+				saveOp = s.top();
+				if(temp.size()>=2){
+					string operand1 = temp.top(); 
+					temp.pop();
+					string operand2 = temp.top();
+					temp.pop();
+					//creating infix expression.
+					string infix = "(" + operand1 + s.top() + operand2 + ")";
+					temp.push(infix);
+				}
+
+			}
+			*/

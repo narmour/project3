@@ -88,6 +88,8 @@ class SyntacticalAnalyzer
 		token_type token;
 		token_type previousToken;
 		CodeGen * gen;
+		int LeftParens, RightParens;
+
 		stack<string> builder; //used for storing individual lexemes when 
 					//we are generating code for nested statements
 					//i.e: (+ (* 1 2))
@@ -125,7 +127,6 @@ class SyntacticalAnalyzer
 		void printP2Exiting(const string &funkyName, const string &token);
 		bool isValidToken(functionRuleNumberMapping fMap);
 		void validateToken(functionRuleNumberMapping fMap);
-		bool isOperator(string x);
 };
 
 #endif

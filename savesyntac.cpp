@@ -75,8 +75,6 @@ SyntacticalAnalyzer::SyntacticalAnalyzer (char * filename)
 
 	string p2FileName = name + ".p2";
 	p2file.open(p2FileName);
-	LeftParens = 0; 
-	RightParens = 0;
 
 	token = lex->GetToken();
 	previousToken = token;
@@ -202,24 +200,29 @@ int SyntacticalAnalyzer::stmt(){
 
 	if(token==IDENT_T){
 		printP2FileUsing("8");
-		//gen->WriteCode(0,lex->GetLexeme());
-		builder.push("Object(" + lex->GetLexeme() + ")");
+		gen->WriteCode(0,lex->GetLexeme());
 		token = lex->GetToken();
 	}
-
 	else if (token == LPAREN_T){
 		//in a nest
-		LeftParens++;
 		//need to push the lparen in
-		
-		//builder.push(lex->GetLexeme());
+		builder.push(lex->GetLexeme());
 		printP2FileUsing("9");
 		
 		token = lex->GetToken();
+		if(previousToken == DISPLAY_T && builder.size()>1){//to clear the leading LPAREN and
+		       						   //starting parent in stack
+			builder.pop();//pop (
+			builder.pop();//pop (
+			previousToken = EOF_T;//using EOF just to change previousToken value
+		}
+		if(previousToken == DISPLAY_T && builder.size() > 0){//incase there is no paren following display
+			builder.pop();//pop (
+			cout << "builder size should = 0: " << builder.size() << endl;
+			previousToken = EOF_T;//using EOF just to change previousToken value
+		}	
 		errors+= action();
-		
 		if(token == RPAREN_T){
-			RightParens++;
 			token = lex->GetToken();
 		}
 		else{
@@ -229,9 +232,18 @@ int SyntacticalAnalyzer::stmt(){
 	}
 	else if (token == NUMLIT_T || token ==  STRLIT_T || token ==  SQUOTE_T) {
 		printP2FileUsing("7");
-		if(token != SQUOTE_T){
-			builder.push("Object(" + lex->GetLexeme() + ")");
-		}
+		builder.push("Object(" + lex->GetLexeme() + ")");
+		if(previousToken == DISPLAY_T && builder.size() > 1){//incase there is no paren following display
+			builder.pop();//pop (
+			builder.pop();
+			cout << "builder size should = 0: " << builder.size() << endl;
+			previousToken = EOF_T;//using EOF just to change previousToken value
+		}	
+		if(previousToken == DISPLAY_T && builder.size() > 0){//incase there is no paren following display
+			builder.pop();//pop (
+			cout << "builder size should = 0: " << builder.size() << endl;
+			previousToken = EOF_T;//using EOF just to change previousToken value
+		}	
 		//gen->WriteCode(0, "Object(" + lex->GetLexeme() + ");\n");
 		errors+=literal();
 	}
@@ -241,21 +253,25 @@ int SyntacticalAnalyzer::stmt(){
 	}
 
 	printP2Exiting("Stmt", lex->GetTokenName(token));
-	cout << "at end of stmt LeftParens, RightParens: " << LeftParens << " " << RightParens << endl;
-	if(LeftParens <= RightParens){
-		//TODO:call a function from Gen and pass the stack. then clear stack
-		if(builder.size() > 0){
-			gen->WriteNest(0, builder);
-		}
-		//clear builder for the next nest.
-		while(!builder.empty()){
-			//TODO:displaying what builder contains, delete for deployment
-			cout << builder.top() << endl;
-			builder.pop();	
-		}
-		LeftParens = RightParens = 0;
+	//gen->WriteCode(0,";");  
+	//if I exit with LPAREN_T then print out final expression??
+	if(token == LPAREN_T && expression.size() > 0){
+		gen->WriteCode(0, expression.top() + ";\n");
+		expression.pop();
+	}
+	else if(token == LPAREN_T){//only one statement
 
 	}
+
+	/*
+	//TODO: not sure
+	if(token == LPAREN_T){
+		//make sure builder is clear. 
+		while(!builder.empty()){
+			builder.pop();	
+		}
+	}
+	*/
 	
 	return errors;
 }
@@ -318,24 +334,135 @@ int SyntacticalAnalyzer::stmt_pair_body(){
 int SyntacticalAnalyzer::stmt_list()
 {
 	string tempbuilder = "";
+	//string building = "";
+	vector<string> temp;
+	string saveOp;
 	int errors = 0;
+	bool expressionFirst;
 	printP2File("Stmt_List", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(STMT_LIST_F);
-	
+	//bool funk = (token == IDENT_T) ? true:false;
 	if (token == LPAREN_T || token == IDENT_T || token == NUMLIT_T || token == STRLIT_T || token == SQUOTE_T)
 	{
+		cout << "lexeme: " << lex->GetLexeme() << endl;
+		//in a nest of statements, so push the lexeme into stack
+		/*do in stmt
+		if(token == NUMLIT_T){//convert to object
+			cout << "pushing into builder: " << lex->GetLexeme() << endl;
+			builder.push("Object(" + lex->GetLexeme() + ")");
+			cout << "builder size: " << builder.size() << endl;
+		}
+		else{
+			cout << "pushing into builder: " << lex->GetLexeme() << endl;
+			builder.push(lex->GetLexeme());
+			cout << "builder size: " << builder.size() << endl;
+		}
+		*/
 		printP2FileUsing("5");
-		
 		errors += stmt();
-		
 		if(funk && (lex->pos != lex->line.length() -1 ) )
 			gen->WriteCode(0,", ");
 
+		//gen->WriteCode(0, " \n ");  
 		errors+= stmt_list();
 	}
 
 	else if (token == RPAREN_T){
-		//RightParens++;
+		//here we end a parens in a nested statement
+		//build expression 
+		previousToken = token;
+		if(builder.size() > 1){//we have work to do!
+			cout << "builder size: " << builder.size() << endl;
+			
+			while(builder.size() > 0 && builder.top() != "("){
+				temp.push_back(builder.top());
+				builder.pop();
+			}
+				cout << "printing out temp:\n";
+			for(auto i = temp.begin(); i < temp.end(); i++){
+				cout << *i << " ";
+			}
+			cout << endl;
+			if(builder.size() >0){
+				builder.pop();//pop off "("
+				if(isOperator(builder.top())){
+					expressionFirst = true;
+				}
+				else{
+					expressionFirst = false;
+				}
+			}
+			if(temp.size() == 3){//means we have a full expression, so we can format
+				//and push onto stack. 	
+				//because temp is in the format operator, operator, operand
+				if(temp[2] == "modulo"){
+					temp[2] = "%";
+				}
+				tempbuilder = "(" + temp[1] + temp[2] + temp[0] + ")";  	    
+				
+				expression.push(tempbuilder);
+				tempbuilder = "";
+			}
+			else if(temp.size() == 2){//the second operand is the expression in expression stack
+				//could be expression operator operand or other way around. 
+				if(expressionFirst){
+					if(temp[1] == "round"){
+						tempbuilder = "(round(" + temp[0] + "))";
+					}
+					else if(temp[1] == "modulo"){
+						tempbuilder = "(" + expression.top() + " % " + temp[0] + ")";
+						expression.pop();
+					}
+					else{
+						tempbuilder = "(" + expression.top() + temp[1] + temp[0] + ")";
+						expression.pop();
+					}
+				}
+				else{
+					if(temp[1] == "round"){
+						tempbuilder = "(round(" + temp[0] + ")" + expression.top() + ")";
+					}
+					else if(temp[1] == "modulo"){
+						tempbuilder = "(" + temp[0] + " % " + expression.top() + ")";
+						expression.pop();
+					}
+					else{
+						tempbuilder = "(" + temp[0] + temp[1] + expression.top() + ")";
+						expression.pop();
+					}
+				}
+				//cout << "temp0: " << temp[0] << endl;
+				cout << "expression size: " << expression.size() << endl;
+				expression.push(tempbuilder);
+				tempbuilder = "";
+			}
+			else{//there is multiple operands with one operator
+				for(auto i = temp.begin(); i < temp.end(); i++){
+					//find what operator the expression has
+					if(isOperator(*i)){
+						saveOp = *i;
+					}
+				}
+				//now generate the c++ expression
+				tempbuilder = "(";
+				for(auto i = temp.begin(); i < temp.end(); i++){
+					if(!isOperator(*i)){
+						if(i == temp.begin()){
+							tempbuilder += (*i);
+						}
+						else{
+							tempbuilder += (saveOp + " " + *i);
+						}
+					}
+				}
+				tempbuilder += ")";
+				expression.push(tempbuilder);
+				tempbuilder = "";
+			}
+			cout << "TEMP SIZE = " << temp.size() << endl;
+
+		}
+
 		printP2FileUsing("6");
 	}
 	else
@@ -346,6 +473,14 @@ int SyntacticalAnalyzer::stmt_list()
 
 	printP2Exiting("Stmt_List", lex->GetTokenName(token));
 
+/*	
+	if(token == RPAREN_T){
+		//make sure builder is clear. 
+		while(!builder.empty()){
+			builder.pop();	
+		}
+	}
+*/
 	return errors;
 }
 
@@ -444,7 +579,6 @@ int SyntacticalAnalyzer::define(){
 	int errors = 0;
 	printP2File("Define", lex->GetTokenName(token), lex->GetLexeme());
 	validateToken(DEFINE_F);
-	string oldTok = "";
 
 	if(token == DEFINE_T){
 		printP2FileUsing("4");
@@ -460,7 +594,6 @@ int SyntacticalAnalyzer::define(){
 
 		if(token==IDENT_T){
 			if(lex->GetLexeme() == "main"){
-				oldTok = "main";
 				gen->WriteCode(0, "int " + lex->GetLexeme() + "(");//start of a function  
 
 			}
@@ -488,16 +621,10 @@ int SyntacticalAnalyzer::define(){
 			errors++;
 			writeLstExpected(RPAREN_T);
 		}
-		if(oldTok != "main"){
-			gen->WriteCode(1, "return Object(");//function code generation completed. 
-		}
 
 		errors += stmt();
 		//gen->WriteCode(0,";\n");  
 		errors += stmt_list();
-		if(oldTok != "main"){
-			gen->WriteCode(0, ");\n}\n");//function code generation completed. 
-		}
 
 		if (token == RPAREN_T)
 			token = lex->GetToken();
@@ -515,10 +642,7 @@ int SyntacticalAnalyzer::define(){
 	}
 
 	printP2Exiting("Define", lex->GetTokenName(token));
-	//TODO: might now return 0!!
-	if(oldTok == "main"){
-		gen->WriteCode(1, "return 0;\n}\n");//function code generation completed. 
-	}
+	gen->WriteCode(1, "return 0;\n}\n");//function code generation completed. 
 	return errors;
 	}
 
@@ -773,15 +897,15 @@ int SyntacticalAnalyzer::define(){
 
 			case IDENT_T:
 				printP2FileUsing("47");
-				//gen->WriteCode(1, "");  
+				gen->WriteCode(1, "");  
 				oldTok = lex->GetLexeme();
 				gen->WriteCode(0,lex->GetLexeme() + "(");
 				token = lex->GetToken();
 				//errors += stmt_list(oldTok);
-				//funk = 1;
+				funk = 1;
 				errors += stmt_list();
 				funk = 0;
-				//gen->WriteCode(0,");\n");
+				gen->WriteCode(0,");\n");
 				break;
 
 			case DISPLAY_T:
@@ -1167,11 +1291,8 @@ int SyntacticalAnalyzer::define(){
 			cout << "going into anyother, lexeme = " +lex->GetLexeme() << endl;
 			gen->WriteCode(0, "\"");
 			errors += any_other_token();
-			gen->WriteCode(0, "\";\n");
-
 		}
-		cout << "lexeme in quoted lit = " << lex->GetLexeme() << endl;
-		//gen->WriteCode(0, "\"" + lex->GetLexeme() + "\";\n");
+		gen->WriteCode(0, "\";\n");
 		printP2Exiting("Quoted_Lit", lex->GetTokenName(token));
 		return errors;
 	}
@@ -1197,15 +1318,11 @@ int SyntacticalAnalyzer::define(){
 
 		else if (token == STRLIT_T)
 		{
-			if(builder.empty()){
-				gen->WriteCode(0,"Object(" + lex->GetLexeme() + ");\n");  
-
-			}
-			//gen->WriteCode(0,lex->GetLexeme());//start of a function  
+			gen->WriteCode(0,lex->GetLexeme());//start of a function  
 			printP2FileUsing("11");
 			token = lex->GetToken();
 			if(lex->GetLexeme() == ")"){
-				//gen->WriteCode(0, ";\n");
+				gen->WriteCode(0, ";\n");
 			}
 		}
 
@@ -1309,3 +1426,11 @@ int SyntacticalAnalyzer::define(){
 		while (!isValidToken(fMap) && token != EOF_T)
 			token = lex->GetToken();
 	}
+	bool SyntacticalAnalyzer::isOperator(string x){
+		if(x == "+" || x == "-" || x == "/" || x == "round" ||x == "modulo" || x == "*"){
+			return true;
+		}	
+		else{
+			return false;
+		}
+  	} 

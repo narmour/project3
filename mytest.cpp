@@ -5,8 +5,15 @@
 using namespace std;
 
 int main(){
-	cout << 	round();
-(Object(3)moduloObject(7));
+	cout << ((Object(1.2)*(Object(2)-(Object(1)/Object(3.1))))+Object(-8.7));
+	cout << endl;
+	cout << (((Object(2)/Object(3.2))+(Object(2.3)/Object(9)))/((Object(5)/Object(1.4))-(Object(2)/Object(3.5))));
+	cout << endl;
+	cout << (Object(1)+(Object(1)/(Object(2)+(Object(1)/(Object(1)+(Object(1)/Object(2.6)))))));
+	cout << endl;
+	cout << (Object(1)*Object(-2))*Object(3)*Object(-2)*Object(5)*Object(-6)*Object(7);
+	cout << endl;
+	cout << ((round(Object(10.3)))*(Object(3) % Object(7)));
 	cout << endl;
 	return 0;
 }

@@ -13,7 +13,7 @@ int main(){
 	cout << endl;
 	cout << "xyz";
 	cout << endl;
-	cout << "Sonoma State";
+	cout << Object("Sonoma State");
 	cout << endl;
 	cout << "(1 23 abc de45)";
 	cout << endl;
